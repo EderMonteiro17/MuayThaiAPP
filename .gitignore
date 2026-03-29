@@ -1,0 +1,37 @@
+# Android and Gradle
+.gradle/
+.gradle-user-home/
+.kotlin/
+build/
+*/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local SDK and machine-specific config
+local.properties
+*.iml
+
+# Android Studio and IntelliJ
+.idea/
+
+# Secrets and signing files
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+hs_err_pid*
+replay_pid*
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
