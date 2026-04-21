@@ -1,14 +1,23 @@
 package com.example.muaythaiapp.ui.timer
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,28 +37,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.muaythaiapp.timer.presentation.TimerPhase
 import com.example.muaythaiapp.timer.presentation.TimerUiState
+import com.example.muaythaiapp.ui.theme.BoneWhite
+import com.example.muaythaiapp.ui.theme.BurnoutCrimson
+import com.example.muaythaiapp.ui.theme.CageBlack
+import com.example.muaythaiapp.ui.theme.CornerBlack
+import com.example.muaythaiapp.ui.theme.DeepCrimson
+import com.example.muaythaiapp.ui.theme.MatteBlack
 import com.example.muaythaiapp.ui.theme.MuayThaiAPPTheme
-import kotlin.math.max
+import com.example.muaythaiapp.ui.theme.SteelGray
 
-/**
- * The main screen for the Muay Thai timer.
- * Displays the current round, time remaining, and control buttons.
- *
- * @param uiState The current state of the timer.
- * @param onStartPauseClick Callback triggered when the Start/Pause button is clicked.
- * @param onResetClick Callback triggered when the Reset button is clicked.
- * @param modifier Modifier to be applied to the screen.
- */
 @Composable
 fun TimerScreen(
     uiState: TimerUiState,
@@ -57,66 +64,82 @@ fun TimerScreen(
     onResetClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val targetProgress = rememberProgress(uiState.remainingSeconds, uiState.totalSeconds)
-    val progress by animateFloatAsState(
-        targetValue = targetProgress,
-        label = "countdownProgress",
+    val progress by animateFloatAsState(targetValue = uiState.progressFraction, label = "timerProgress")
+    val infiniteTransition = rememberInfiniteTransition(label = "burnoutPulse")
+    val burnoutPulse by infiniteTransition.animateFloat(
+        initialValue = 0.18f,
+        targetValue = 0.78f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "burnoutAlpha",
     )
-    val phaseColor by animateColorAsState(
-        targetValue = if (uiState.isRestPeriod) {
-            Color(0xFF29D3C5) // Cyan/Teal for Rest
-        } else {
-            Color(0xFFFF7A18) // Orange for Round
+
+    val accentColor = when {
+        uiState.isSessionComplete -> BoneWhite
+        uiState.isBurnoutActive -> BurnoutCrimson
+        uiState.isRoundPeriod -> BoneWhite
+        uiState.isRestPeriod -> SteelGray
+        else -> BoneWhite
+    }
+
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            uiState.isSessionComplete -> MatteBlack
+            uiState.isRoundPeriod -> DeepCrimson
+            else -> MatteBlack
         },
-        label = "phaseColor",
+        label = "phaseBackground",
     )
+
     val backgroundBrush = Brush.verticalGradient(
         colors = listOf(
-            MaterialTheme.colorScheme.surface,
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            backgroundColor,
+            backgroundColor.copy(alpha = 0.95f),
+            MatteBlack,
         ),
     )
 
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface,
+        color = backgroundColor,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(backgroundBrush)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+                .padding(horizontal = 20.dp, vertical = 24.dp),
         ) {
-            TimerAtmosphere(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(240.dp),
-                phaseColor = phaseColor,
-            )
+            if (uiState.isBurnoutActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(BoneWhite.copy(alpha = burnoutPulse * 0.12f)),
+                )
+            }
 
             Column(
                 modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Spacer(modifier = Modifier.height(12.dp))
-                PhaseHeader(
-                    isRestPeriod = uiState.isRestPeriod,
-                    currentRound = uiState.currentRound,
-                    completedRounds = uiState.completedRounds,
+                TimerHeader(
+                    uiState = uiState,
+                    accentColor = accentColor,
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                TimerStatsRow(
+                    uiState = uiState,
+                    accentColor = accentColor,
+                )
                 CountdownCard(
                     uiState = uiState,
                     progress = progress,
-                    phaseColor = phaseColor,
+                    accentColor = accentColor,
                 )
-                Spacer(modifier = Modifier.height(24.dp))
                 ActionRow(
-                    isRunning = uiState.isRunning,
+                    uiState = uiState,
+                    accentColor = accentColor,
                     onStartPauseClick = onStartPauseClick,
                     onResetClick = onResetClick,
                 )
@@ -125,106 +148,270 @@ fun TimerScreen(
     }
 }
 
-/**
- * Displays the header information for the current phase (Round or Rest).
- */
 @Composable
-private fun PhaseHeader(
-    isRestPeriod: Boolean,
-    currentRound: Int,
-    completedRounds: Int,
+private fun TimerHeader(
+    uiState: TimerUiState,
+    accentColor: Color,
 ) {
-    val phaseLabel = if (isRestPeriod) "Rest" else "Round"
-    val phaseAccent = if (isRestPeriod) Color(0xFF29D3C5) else Color(0xFFFF7A18)
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         Text(
-            text = phaseLabel.uppercase(),
+            text = "NAKA RED",
+            style = MaterialTheme.typography.displayMedium.copy(
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.5.sp,
+            ),
+            color = BoneWhite,
+        )
+        Text(
+            text = uiState.phaseTagline.uppercase(),
             style = MaterialTheme.typography.labelLarge.copy(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp,
             ),
-            color = phaseAccent,
+            color = accentColor,
         )
-        Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Round $currentRound",
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontWeight = FontWeight.Black,
-            ),
-            color = MaterialTheme.colorScheme.onSurface,
+            text = uiState.sessionTitle.uppercase(),
+            style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Black),
+            color = BoneWhite,
         )
-        Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "$completedRounds completed",
+            text = uiState.nextCueLabel,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = SteelGray,
         )
     }
 }
 
-/**
- * Displays the countdown timer inside a card with a circular progress indicator.
- */
+@Composable
+private fun TimerStatsRow(
+    uiState: TimerUiState,
+    accentColor: Color,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        TimerStatCard(
+            modifier = Modifier.weight(1f),
+            label = "Phase",
+            value = uiState.phaseLabel,
+            accentColor = accentColor,
+        )
+        TimerStatCard(
+            modifier = Modifier.weight(1f),
+            label = "Round",
+            value = uiState.roundLabel,
+            accentColor = BoneWhite,
+        )
+        TimerStatCard(
+            modifier = Modifier.weight(1f),
+            label = "Done",
+            value = uiState.roundsSummary,
+            accentColor = SteelGray,
+        )
+    }
+}
+
+@Composable
+private fun TimerStatCard(
+    label: String,
+    value: String,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = CageBlack.copy(alpha = 0.92f)),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.24f)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = label.uppercase(),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp,
+                ),
+                color = SteelGray,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+                color = BoneWhite,
+            )
+        }
+    }
+}
+
 @Composable
 private fun CountdownCard(
     uiState: TimerUiState,
     progress: Float,
-    phaseColor: Color,
+    accentColor: Color,
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .padding(horizontal = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CageBlack.copy(alpha = 0.90f)),
+        border = BorderStroke(
+            width = if (uiState.isBurnoutActive) 2.dp else 1.dp,
+            color = accentColor.copy(alpha = if (uiState.isBurnoutActive) 0.85f else 0.28f),
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(22.dp),
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            CircularCountdown(
+            RoundRing(
                 progress = progress,
-                phaseColor = phaseColor,
-                modifier = Modifier.fillMaxSize(),
+                accentColor = accentColor,
+                size = 280.dp,
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = formatTime(uiState.remainingSeconds),
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontWeight = FontWeight.Black,
-                        fontSize = 56.sp,
+                        fontSize = 82.sp,
+                        lineHeight = 82.sp,
+                        letterSpacing = (-2).sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = BoneWhite,
                     textAlign = TextAlign.Center,
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (uiState.isRestPeriod) "Recovery window" else "Work window",
+                    text = uiState.statusLabel.uppercase(),
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = accentColor,
                 )
+            }
+            ProgressStrip(progress = progress, accentColor = accentColor)
+            if (uiState.isBurnoutActive) {
+                BurnoutBanner(uiState = uiState)
             }
         }
     }
 }
 
-/**
- * Control buttons for the timer (Start/Pause and Reset).
- */
+@Composable
+private fun RoundRing(
+    progress: Float,
+    accentColor: Color,
+    size: Dp,
+) {
+    Box(
+        modifier = Modifier.size(size),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = this.size.minDimension * 0.06f
+            drawCircle(
+                color = CornerBlack,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
+            )
+            drawArc(
+                color = accentColor,
+                startAngle = -90f,
+                sweepAngle = 360f * progress.coerceIn(0f, 1f),
+                useCenter = false,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = strokeWidth,
+                    cap = StrokeCap.Round,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProgressStrip(
+    progress: Float,
+    accentColor: Color,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(12.dp)
+            .border(
+                width = 1.dp,
+                color = BoneWhite.copy(alpha = 0.12f),
+                shape = MaterialTheme.shapes.extraLarge,
+            )
+            .background(CornerBlack, MaterialTheme.shapes.extraLarge)
+            .padding(2.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .background(accentColor, MaterialTheme.shapes.extraLarge),
+        )
+    }
+}
+
+@Composable
+private fun BurnoutBanner(
+    uiState: TimerUiState,
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BurnoutCrimson.copy(alpha = 0.22f)),
+        border = BorderStroke(1.dp, BurnoutCrimson),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "BURNOUT MODE",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                    ),
+                    color = BoneWhite,
+                )
+                Text(
+                    text = "${uiState.remainingSeconds}s left in the red zone",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = BoneWhite.copy(alpha = 0.86f),
+                )
+            }
+            Text(
+                text = "${uiState.burnoutBeepIntervalMillis} ms",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
+                color = BoneWhite,
+            )
+        }
+    }
+}
+
 @Composable
 private fun ActionRow(
-    isRunning: Boolean,
+    uiState: TimerUiState,
+    accentColor: Color,
     onStartPauseClick: () -> Unit,
     onResetClick: () -> Unit,
 ) {
+    val buttonContentColor = if (uiState.isBurnoutActive) BoneWhite else MatteBlack
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -233,24 +420,19 @@ private fun ActionRow(
             onClick = onStartPauseClick,
             modifier = Modifier
                 .weight(1f)
-                .height(58.dp),
+                .height(64.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isRunning) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                contentColor = if (isRunning) {
-                    MaterialTheme.colorScheme.onError
-                } else {
-                    MaterialTheme.colorScheme.onPrimary
-                },
+                containerColor = accentColor,
+                contentColor = buttonContentColor,
             ),
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.extraLarge,
         ) {
             Text(
-                text = if (isRunning) "Pause" else "Start",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                text = uiState.primaryActionLabel,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.8.sp,
+                ),
             )
         }
 
@@ -258,106 +440,24 @@ private fun ActionRow(
             onClick = onResetClick,
             modifier = Modifier
                 .weight(1f)
-                .height(58.dp),
-            shape = MaterialTheme.shapes.large,
+                .height(64.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            border = BorderStroke(1.dp, BoneWhite.copy(alpha = 0.24f)),
         ) {
             Text(
                 text = "Reset",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.8.sp,
+                ),
+                color = BoneWhite,
             )
         }
     }
-}
-
-/**
- * Custom circular progress indicator for the countdown.
- */
-@Composable
-private fun CircularCountdown(
-    progress: Float,
-    phaseColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-
-    Box(
-        modifier = modifier.clip(MaterialTheme.shapes.extraLarge),
-        contentAlignment = Alignment.Center,
-    ) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = size.minDimension * 0.08f
-            val arcSize = size.minDimension - strokeWidth
-            val topLeft = androidx.compose.ui.geometry.Offset(
-                x = (size.width - arcSize) / 2f,
-                y = (size.height - arcSize) / 2f,
-            )
-            drawCircle(
-                color = trackColor,
-                radius = arcSize / 2f,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
-            )
-            drawArc(
-                color = phaseColor,
-                startAngle = -90f,
-                sweepAngle = 360f * progress.coerceIn(0f, 1f),
-                useCenter = false,
-                topLeft = topLeft,
-                size = androidx.compose.ui.geometry.Size(arcSize, arcSize),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(
-                    width = strokeWidth,
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                ),
-            )
-        }
-    }
-}
-
-/**
- * Background decorative elements to provide visual depth.
- */
-@Composable
-private fun TimerAtmosphere(
-    modifier: Modifier = Modifier,
-    phaseColor: Color,
-) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .size(140.dp)
-                .background(
-                    color = phaseColor.copy(alpha = 0.16f),
-                    shape = MaterialTheme.shapes.extraLarge,
-                ),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size(96.dp)
-                .background(
-                    color = phaseColor.copy(alpha = 0.10f),
-                    shape = MaterialTheme.shapes.extraLarge,
-                ),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .size(180.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                    shape = MaterialTheme.shapes.extraLarge,
-                ),
-        )
-    }
-}
-
-private fun rememberProgress(remainingSeconds: Int, totalSeconds: Int): Float {
-    val safeTotal = max(totalSeconds, 1)
-    return (remainingSeconds.coerceIn(0, safeTotal).toFloat() / safeTotal.toFloat()).coerceIn(0f, 1f)
 }
 
 private fun formatTime(seconds: Int): String {
-    val safeSeconds = max(seconds, 0)
+    val safeSeconds = seconds.coerceAtLeast(0)
     val minutes = safeSeconds / 60
     val remaining = safeSeconds % 60
     return "%02d:%02d".format(minutes, remaining)
@@ -365,10 +465,26 @@ private fun formatTime(seconds: Int): String {
 
 @Preview(showBackground = true)
 @Composable
-private fun TimerScreenPreviewRound() {
-    MuayThaiAPPTheme(dynamicColor = false) {
+fun TimerScreenPreviewPrep() {
+    MuayThaiAPPTheme(darkTheme = true, dynamicColor = false) {
         TimerScreen(
             uiState = TimerUiState(
+                phase = TimerPhase.Prep,
+                remainingSeconds = 8,
+            ),
+            onStartPauseClick = {},
+            onResetClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TimerScreenPreviewRound() {
+    MuayThaiAPPTheme(darkTheme = true, dynamicColor = false) {
+        TimerScreen(
+            uiState = TimerUiState(
+                phase = TimerPhase.Round,
                 remainingSeconds = 143,
                 isRunning = true,
                 currentRound = 2,
@@ -382,15 +498,51 @@ private fun TimerScreenPreviewRound() {
 
 @Preview(showBackground = true)
 @Composable
-private fun TimerScreenPreviewRest() {
-    MuayThaiAPPTheme(dynamicColor = false) {
+fun TimerScreenPreviewBurnout() {
+    MuayThaiAPPTheme(darkTheme = true, dynamicColor = false) {
+        TimerScreen(
+            uiState = TimerUiState(
+                phase = TimerPhase.Round,
+                remainingSeconds = 18,
+                isRunning = true,
+                currentRound = 5,
+                completedRounds = 4,
+            ),
+            onStartPauseClick = {},
+            onResetClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TimerScreenPreviewRest() {
+    MuayThaiAPPTheme(darkTheme = true, dynamicColor = false) {
         TimerScreen(
             uiState = TimerUiState(
                 phase = TimerPhase.Rest,
                 remainingSeconds = 41,
-                isRunning = false,
                 currentRound = 3,
                 completedRounds = 2,
+            ),
+            onStartPauseClick = {},
+            onResetClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TimerScreenPreviewComplete() {
+    MuayThaiAPPTheme(darkTheme = true, dynamicColor = false) {
+        TimerScreen(
+            uiState = TimerUiState(
+                phase = TimerPhase.Round,
+                remainingSeconds = 0,
+                currentRound = 5,
+                totalRounds = 5,
+                completedRounds = 5,
+                isSessionComplete = true,
             ),
             onStartPauseClick = {},
             onResetClick = {},

@@ -8,33 +8,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = FightRed,
-    onPrimary = PureWhite,
-    secondary = FightGold,
-    onSecondary = DeepInk,
-    tertiary = SuccessGreen,
-    onTertiary = DeepInk,
-    background = CanvasDark,
-    onBackground = PureWhite,
-    surface = SurfaceDark,
-    onSurface = PureWhite,
-    surfaceVariant = DeepInk,
-    onSurfaceVariant = GuardGray
+    primary = DeepCrimson,
+    onPrimary = BoneWhite,
+    secondary = BurnoutCrimson,
+    onSecondary = BoneWhite,
+    tertiary = CornerBlack,
+    onTertiary = BoneWhite,
+    background = MatteBlack,
+    onBackground = BoneWhite,
+    surface = CageBlack,
+    onSurface = BoneWhite,
+    surfaceVariant = CornerBlack,
+    onSurfaceVariant = SteelGray,
+    outline = DeepCrimson.copy(alpha = 0.55f),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = FightRed,
-    onPrimary = PureWhite,
-    secondary = FightGold,
-    onSecondary = DeepInk,
-    tertiary = SuccessGreen,
-    onTertiary = DeepInk,
+    primary = DeepCrimson,
+    onPrimary = BoneWhite,
+    secondary = BurnoutCrimson,
+    onSecondary = BoneWhite,
+    tertiary = CornerBlack,
+    onTertiary = BoneWhite,
     background = CanvasLight,
-    onBackground = DeepInk,
+    onBackground = MatteBlack,
     surface = SurfaceLight,
-    onSurface = DeepInk,
+    onSurface = MatteBlack,
     surfaceVariant = Color(0xFFE6DED0),
-    onSurfaceVariant = Color(0xFF5D544D)
+    onSurfaceVariant = Color(0xFF5D544D),
+    outline = DeepCrimson.copy(alpha = 0.32f),
 )
 
 @Suppress("UNUSED_PARAMETER")
@@ -42,11 +44,11 @@ private val LightColorScheme = lightColorScheme(
 fun MuayThaiAPPTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
         typography = Typography,
-        content = content
+        content = content,
     )
 }

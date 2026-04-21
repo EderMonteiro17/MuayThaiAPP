@@ -7,11 +7,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.muaythaiapp.onboarding.presentation.OnboardingViewModel
 import com.example.muaythaiapp.timer.presentation.TimerViewModel
+import com.example.muaythaiapp.ui.onboarding.OnboardingRoute
 import com.example.muaythaiapp.ui.timer.TimerRoute
 import com.example.muaythaiapp.ui.theme.MuayThaiAPPTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -35,19 +38,44 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MuayThaiAPPTheme {
+            MuayThaiAPPTheme(darkTheme = true) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    val viewModel: TimerViewModel = hiltViewModel()
-                    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-                    TimerRoute(
-                        uiState = uiState,
-                        onStartPauseClick = viewModel::onStartPauseToggle,
-                        onResetClick = viewModel::resetTimer,
+                    AppEntryPoint(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AppEntryPoint(
+    modifier: Modifier = Modifier,
+) {
+    val onboardingViewModel: OnboardingViewModel = hiltViewModel()
+    val onboardingUiState by onboardingViewModel.uiState.collectAsStateWithLifecycle()
+
+    if (onboardingUiState.completedProfile == null) {
+        OnboardingRoute(
+            uiState = onboardingUiState,
+            onStanceSelected = onboardingViewModel::selectStance,
+            onExperienceLevelSelected = onboardingViewModel::selectExperienceLevel,
+            onPrimaryGoalSelected = onboardingViewModel::selectPrimaryGoal,
+            onLimitationToggle = onboardingViewModel::toggleLimitation,
+            onLimitationNotesChanged = onboardingViewModel::updateLimitationNotes,
+            onSaveProfile = onboardingViewModel::saveProfile,
+            modifier = modifier,
+        )
+    } else {
+        val timerViewModel: TimerViewModel = hiltViewModel()
+        val timerUiState by timerViewModel.uiState.collectAsStateWithLifecycle()
+
+        TimerRoute(
+            uiState = timerUiState,
+            onStartPauseClick = timerViewModel::onStartPauseToggle,
+            onResetClick = timerViewModel::resetTimer,
+            modifier = modifier,
+        )
     }
 }

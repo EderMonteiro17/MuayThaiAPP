@@ -2,74 +2,129 @@ package com.example.muaythaiapp.timer.presentation
 
 import kotlin.math.max
 
-/** Default duration for a training round in seconds. */
+const val DEFAULT_PREP_DURATION_SECONDS = 10
 const val DEFAULT_ROUND_DURATION_SECONDS = 3 * 60
-/** Default duration for a rest period in seconds. */
 const val DEFAULT_REST_DURATION_SECONDS = 60
+const val DEFAULT_TOTAL_ROUNDS = 5
+const val DEFAULT_BURNOUT_THRESHOLD_SECONDS = 30
 
-/**
- * Represents the different phases of a timer.
- */
 enum class TimerPhase {
-    /** Active training phase. */
+    Prep,
     Round,
-    /** Recovery/rest phase. */
-    Rest
+    Rest,
 }
 
-/**
- * State class for the Timer screen.
- *
- * @property phase The current [TimerPhase].
- * @property isRunning Whether the timer is currently counting down.
- * @property remainingSeconds The number of seconds left in the current phase.
- * @property currentRound The current round number (starting from 1).
- * @property completedRounds The total number of rounds completed in this session.
- * @property roundDurationSeconds Configured duration for a Round phase.
- * @property restDurationSeconds Configured duration for a Rest phase.
- */
 data class TimerUiState(
-    val phase: TimerPhase = TimerPhase.Round,
+    val phase: TimerPhase = TimerPhase.Prep,
     val isRunning: Boolean = false,
-    val remainingSeconds: Int = DEFAULT_ROUND_DURATION_SECONDS,
+    val remainingSeconds: Int = DEFAULT_PREP_DURATION_SECONDS,
     val currentRound: Int = 1,
+    val totalRounds: Int = DEFAULT_TOTAL_ROUNDS,
     val completedRounds: Int = 0,
+    val prepDurationSeconds: Int = DEFAULT_PREP_DURATION_SECONDS,
     val roundDurationSeconds: Int = DEFAULT_ROUND_DURATION_SECONDS,
     val restDurationSeconds: Int = DEFAULT_REST_DURATION_SECONDS,
+    val burnoutThresholdSeconds: Int = DEFAULT_BURNOUT_THRESHOLD_SECONDS,
+    val isSessionComplete: Boolean = false,
 ) {
-    /**
-     * Returns the total duration of the current phase in seconds.
-     */
     val phaseDurationSeconds: Int
         get() = when (phase) {
+            TimerPhase.Prep -> prepDurationSeconds
             TimerPhase.Round -> roundDurationSeconds
             TimerPhase.Rest -> restDurationSeconds
         }
 
-    /**
-     * Alias for [phaseDurationSeconds].
-     */
     val totalSeconds: Int
-        get() = phaseDurationSeconds
+        get() = max(phaseDurationSeconds, 1)
 
-    /**
-     * True if the current phase is [TimerPhase.Rest].
-     */
+    val isPrepPeriod: Boolean
+        get() = phase == TimerPhase.Prep
+
+    val isRoundPeriod: Boolean
+        get() = phase == TimerPhase.Round
+
     val isRestPeriod: Boolean
         get() = phase == TimerPhase.Rest
 
-    /**
-     * The progress of the current phase as a fraction between 0.0 and 1.0.
-     */
     val progressFraction: Float
-        get() = remainingSeconds.toFloat() / max(phaseDurationSeconds, 1)
+        get() = remainingSeconds.coerceIn(0, totalSeconds).toFloat() / totalSeconds.toFloat()
 
-    /**
-     * A user-friendly label for the current phase.
-     */
+    val isBurnoutActive: Boolean
+        get() = isRoundPeriod &&
+            !isSessionComplete &&
+            remainingSeconds in 1..burnoutThresholdSeconds
+
+    val burnoutProgress: Float
+        get() = if (!isBurnoutActive) {
+            0f
+        } else {
+            (burnoutThresholdSeconds - remainingSeconds).toFloat() /
+                max(burnoutThresholdSeconds, 1).toFloat()
+        }
+
     val phaseLabel: String
-        get() = when (phase) {
-            TimerPhase.Round -> "Round"
-            TimerPhase.Rest -> "Rest"
+        get() = when {
+            isSessionComplete -> "Complete"
+            isPrepPeriod -> "Prep"
+            isRestPeriod -> "Rest"
+            else -> "Round"
+        }
+
+    val statusLabel: String
+        get() = when {
+            isSessionComplete -> "Session complete"
+            isBurnoutActive -> "Burnout mode"
+            isPrepPeriod -> "Get ready"
+            isRestPeriod -> "Recover"
+            else -> "Fight pace"
+        }
+
+    val primaryActionLabel: String
+        get() = when {
+            isSessionComplete -> "Restart"
+            isRunning -> "Pause"
+            else -> "Start"
+        }
+
+    val burnoutBeepIntervalMillis: Long
+        get() = when {
+            !isBurnoutActive -> 0L
+            remainingSeconds <= 10 -> 250L
+            remainingSeconds <= 20 -> 500L
+            else -> 750L
+        }
+
+    val roundLabel: String
+        get() = "Round $currentRound/$totalRounds"
+
+    val roundsSummary: String
+        get() = "$completedRounds completed"
+
+    val nextCueLabel: String
+        get() = when {
+            isSessionComplete -> "Reset to run the session again"
+            isBurnoutActive -> "Cue speed ${burnoutBeepIntervalMillis} ms"
+            isPrepPeriod -> "Bell into round $currentRound"
+            isRestPeriod -> "Next prep for round $currentRound"
+            else -> "Keep the pressure on"
+        }
+
+    val phaseTagline: String
+        get() = when {
+            isSessionComplete -> "Work finished"
+            isBurnoutActive -> "Do not fade"
+            else -> when (phase) {
+                TimerPhase.Prep -> "Set stance"
+                TimerPhase.Round -> "Apply pressure"
+                TimerPhase.Rest -> "Control breathing"
+            }
+        }
+
+    val sessionTitle: String
+        get() = when {
+            isSessionComplete -> "Session complete"
+            isPrepPeriod -> "Prep window"
+            isRestPeriod -> "Rest window"
+            else -> "Round live"
         }
 }
